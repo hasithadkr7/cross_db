@@ -16,16 +16,10 @@ Before to run the tests you have run dialyzer first:
 $ rebar3 dialyzer
 ```
 
-Then run the tests like so:
+Then run the tests and cover like so:
 
 ```
-$ rebar3 ct
-```
-
-And if you want to check the coverage:
-
-```
-$ rebar3 do ct, cover
+$ rebar3 test
 ```
 
 ## Copyright and License
