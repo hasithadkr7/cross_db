@@ -90,9 +90,8 @@ t_insert_or_raise(Config) ->
 
     ErrChangeset =
         try
-            xdb_ct:pipe(CS,
-                        [{fun xdb_changeset:add_error/3, [first_name, <<"Invalid">>]},
-                         {fun Repo:insert_or_raise/1, []}])
+            Repo:insert_or_raise(
+                xdb_changeset:add_error(CS, first_name, <<"Invalid">>))
         catch
             error:{invalid_changeset_error, ErrCS} ->
                 ErrCS
@@ -105,12 +104,10 @@ t_insert_or_raise(Config) ->
 t_insert_errors(Config) ->
     Repo = xdb_lib:keyfetch(repo, Config),
 
-    {error, CS} =
-        xdb_ct:pipe(#{id => 1},
-                    [{fun person:schema/1, []},
-                     {fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                     {fun xdb_changeset:add_error/3, [first_name, <<"Invalid">>]},
-                     {fun Repo:insert/1, []}]),
+    P1 = person:schema(#{id => 1}),
+    P1CS = xdb_changeset:change(P1, #{first_name => <<"Joe">>}),
+    P1ErrCS = xdb_changeset:add_error(P1CS, first_name, <<"Invalid">>),
+    {error, CS} = Repo:insert(P1ErrCS),
 
     ok = assert_error(fun() -> Repo:update(CS) end, badarg).
 
@@ -243,24 +240,17 @@ t_update(Config) ->
     ok = seed(Config),
     Person = Repo:get(person, 1),
 
-    {ok, _CS} =
-        xdb_ct:pipe(Person,
-                    [{fun person:changeset/2, [#{first_name => <<"Joe2">>}]},
-                     {fun Repo:update/1, []}]),
+    CS = person:changeset(Person, #{first_name => <<"Joe2">>}),
+    {ok, _CS} = Repo:update(CS),
 
     #{id := 1, first_name := <<"Joe2">>} = Repo:get(person, 1),
 
-    ok =
-        assert_error(fun() ->
-                        xdb_ct:pipe(#{id => 11},
-                                    [{fun person:schema/1, []},
-                                     {fun person:changeset/2,
-                                      [#{first_name => "other",
-                                         last_name => "other",
-                                         age => 33}]},
-                                     {fun Repo:update/1, []}])
-                     end,
-                     stale_entry_error).
+    InitCS1 = person:schema(#{id => 11}),
+    CS1 = person:changeset(InitCS1,
+                           #{first_name => "other",
+                             last_name => "other",
+                             age => 33}),
+    ok = assert_error(fun() -> Repo:update(CS1) end, stale_entry_error).
 
 -spec t_update_or_raise(xdb_ct:config()) -> ok.
 t_update_or_raise(Config) ->
@@ -268,30 +258,28 @@ t_update_or_raise(Config) ->
     ok = seed(Config),
     Person = Repo:get(person, 1),
 
-    _ = xdb_ct:pipe(Person,
-                    [{fun person:changeset/2, [#{first_name => <<"Joe2">>}]},
-                     {fun Repo:update_or_raise/1, []}]),
+    _ = Repo:update_or_raise(
+            person:changeset(Person, #{first_name => <<"Joe2">>})),
 
     #{id := 1, first_name := <<"Joe2">>} = Repo:get(person, 1),
 
     ok =
         assert_error(fun() ->
-                        xdb_ct:pipe(Person,
-                                    [{fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                                     {fun xdb_changeset:add_error/3, [first_name, <<"Invalid">>]},
-                                     {fun Repo:update_or_raise/1, []}])
+                        CS = xdb_changeset:change(Person, #{first_name => <<"Joe">>}),
+                        ErrorCS = xdb_changeset:add_error(CS, first_name, <<"Invalid">>),
+                        Repo:update_or_raise(ErrorCS)
                      end,
                      invalid_changeset_error),
 
     ok =
         assert_error(fun() ->
-                        xdb_ct:pipe(#{id => 11},
-                                    [{fun person:schema/1, []},
-                                     {fun person:changeset/2,
-                                      [#{first_name => "other",
-                                         last_name => "other",
-                                         age => 33}]},
-                                     {fun Repo:update_or_raise/1, []}])
+                        Schema = person:schema(#{id => 11}),
+                        PersonCS =
+                            person:changeset(Schema,
+                                             #{first_name => "other",
+                                               last_name => "other",
+                                               age => 33}),
+                        Repo:update_or_raise(PersonCS)
                      end,
                      stale_entry_error).
 
@@ -306,18 +294,14 @@ t_delete(Config) ->
     {ok, #{'__meta__' := _, id := 1}} = Repo:delete(P1),
     undefined = Repo:get(person, 1),
 
-    {ok, #{id := 2}} =
-        xdb_ct:pipe(#{id => 2},
-                    [{fun person:schema/1, []},
-                     {fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                     {fun Repo:delete/1, []}]),
+    Person1 = person:schema(#{id => 2}),
+    CS1 = xdb_changeset:change(Person1, #{first_name => <<"Joe">>}),
+    {ok, #{id := 2}} = Repo:delete(CS1),
 
-    {error, #{}} =
-        xdb_ct:pipe(#{id => 3},
-                    [{fun person:schema/1, []},
-                     {fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                     {fun xdb_changeset:add_error/3, [first_name, <<"Invalid">>]},
-                     {fun Repo:delete/1, []}]),
+    Person2 = person:schema(#{id => 3}),
+    CS2 = xdb_changeset:change(Person2, #{first_name => <<"Joe">>}),
+    ErrorCS2 = xdb_changeset:add_error(CS2, first_name, <<"Invalid">>),
+    {error, #{}} = Repo:delete(ErrorCS2),
 
     ok = assert_error(fun() -> Repo:delete(P1) end, stale_entry_error).
 
@@ -332,19 +316,16 @@ t_delete_or_raise(Config) ->
     #{'__meta__' := _, id := 1} = Repo:delete_or_raise(P1),
     undefined = Repo:get(person, 1),
 
-    #{id := 2} =
-        xdb_ct:pipe(#{id => 2},
-                    [{fun person:schema/1, []},
-                     {fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                     {fun Repo:delete_or_raise/1, []}]),
+    P2 = person:schema(#{id => 2}),
+    P2CS = xdb_changeset:change(P2, #{first_name => <<"Joe">>}),
+    #{id := 2} = Repo:delete_or_raise(P2CS),
 
     ok =
         assert_error(fun() ->
-                        xdb_ct:pipe(#{id => 3},
-                                    [{fun person:schema/1, []},
-                                     {fun xdb_changeset:change/2, [#{first_name => <<"Joe">>}]},
-                                     {fun xdb_changeset:add_error/3, [first_name, <<"Invalid">>]},
-                                     {fun Repo:delete_or_raise/1, []}])
+                        P3 = person:schema(#{id => 3}),
+                        P3CS = xdb_changeset:change(P3, #{first_name => <<"Joe">>}),
+                        P3ErrCS = xdb_changeset:add_error(P3CS, first_name, <<"Invalid">>),
+                        Repo:delete_or_raise(P3ErrCS)
                      end,
                      invalid_changeset_error),
 

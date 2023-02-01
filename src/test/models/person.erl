@@ -53,13 +53,21 @@ new(FirstName, LastName, Age, Address) ->
 
 -spec changeset(t(), xdb_schema:fields()) -> xdb_changeset:t().
 changeset(Person, Params) ->
-    xdb_ct:pipe(Person,
-                [{fun xdb_changeset:cast/3, [Params, ?PERMITTED]},
-                 {fun xdb_changeset:validate_required/2, [[id, first_name, last_name, age]]},
-                 {fun xdb_changeset:validate_inclusion/3, [status, [<<"active">>, <<"blocked">>]]},
-                 {fun xdb_changeset:validate_number/3, [age, [{less_than_or_equal_to, 33}]]},
-                 {fun xdb_changeset:validate_length/3, [last_name, [{min, 3}]]},
-                 {fun xdb_changeset:validate_format/3, [last_name, <<"^oth">>]}]).
+    InitCS = xdb_changeset:cast(Person, Params, ?PERMITTED),
+    ValidReqCS = xdb_changeset:validate_required(InitCS, [id, first_name, last_name, age]),
+    ValidInCS =
+        xdb_changeset:validate_inclusion(ValidReqCS, status, [<<"active">>, <<"blocked">>]),
+    ValidNumCS = xdb_changeset:validate_number(ValidInCS, age, [{less_than_or_equal_to, 33}]),
+    ValidLenCS = xdb_changeset:validate_length(ValidNumCS, last_name, [{min, 3}]),
+    xdb_changeset:validate_format(ValidLenCS, last_name, <<"^oth">>).
+
+%%    xdb_ct:pipe(Person,
+%%                [{fun xdb_changeset:cast/3, [Params, ?PERMITTED]},
+%%                 {fun xdb_changeset:validate_required/2, [[id, first_name, last_name, age]]},
+%%                 {fun xdb_changeset:validate_inclusion/3, [status, [<<"active">>, <<"blocked">>]]},
+%%                 {fun xdb_changeset:validate_number/3, [age, [{less_than_or_equal_to, 33}]]},
+%%                 {fun xdb_changeset:validate_length/3, [last_name, [{min, 3}]]},
+%%                 {fun xdb_changeset:validate_format/3, [last_name, <<"^oth">>]}]).
 
 -spec all(xdb_repo:t(), xdb_query:conditions()) ->
              {integer(), #{any() => t()}} | no_return().

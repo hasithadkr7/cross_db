@@ -1,6 +1,6 @@
 -module(xdb_ct).
 
--export([assert_error/2, pipe/2, generate_value/1]).
+-export([assert_error/2, generate_value/1]).
 
 -type config() :: proplists:proplist().
 
@@ -21,22 +21,22 @@ assert_error(Fun, Error) ->
             ok
     end.
 
--spec pipe(Initial, Pipeline) -> Return
-    when Initial :: any(),
-         Module :: module(),
-         Fun :: atom(),
-         Args :: [any()],
-         FunSpec :: {fun(), Args} | {Module, Fun, Args},
-         Pipeline :: [FunSpec],
-         Return :: any().
-pipe(Initial, Pipeline) ->
-    lists:foldl(fun ({Module, Fun, Args}, Acc) ->
-                        apply(Module, Fun, [Acc | Args]);
-                    ({Fun, Args}, Acc) ->
-                        apply(Fun, [Acc | Args])
-                end,
-                Initial,
-                Pipeline).
+%%-spec pipe(Initial, Pipeline) -> Return
+%%    when Initial :: any(),
+%%         Module :: module(),
+%%         Fun :: atom(),
+%%         Args :: [any()],
+%%         FunSpec :: {fun(), Args} | {Module, Fun, Args},
+%%         Pipeline :: [FunSpec],
+%%         Return :: any().
+%%pipe(Initial, Pipeline) ->
+%%    lists:foldl(fun ({Module, Fun, Args}, Acc) ->
+%%                        apply(Module, Fun, [Acc | Args]);
+%%                    ({Fun, Args}, Acc) ->
+%%                        apply(Fun, [Acc | Args])
+%%                end,
+%%                Initial,
+%%                Pipeline).
 
 -spec generate_value(xdb_schema_spec:field_type()) -> any().
 generate_value(string) ->

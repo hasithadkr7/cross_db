@@ -62,13 +62,12 @@ t_transaction(Config) ->
                                                     last_name => "Poe",
                                                     age => 40})),
 
-                            {ok, _CS} =
-                                xdb_ct:pipe(person,
-                                            [{fun Repo:get/2, [1]},
-                                             {fun person:changeset/2,
-                                              [#{first_name => <<"John">>,
-                                                 last_name => <<"other">>}]},
-                                             {fun Repo:update/1, []}]),
+                            P1 = Repo:get(person, 1),
+                            P1CS =
+                                person:changeset(P1,
+                                                 #{first_name => <<"John">>,
+                                                   last_name => <<"other">>}),
+                            {ok, _CS} = Repo:update(P1CS),
 
                             {ok, #{id := 10}} =
                                 Repo:delete(
@@ -104,11 +103,9 @@ t_transaction_error(Config) ->
                                                     first_name => "Alan",
                                                     last_name => "Poe",
                                                     age => 40})),
-
-                            xdb_ct:pipe(person,
-                                        [{fun Repo:get/2, [1]},
-                                         {fun person:changeset/2, [#{last_name => <<"Poe">>}]},
-                                         {fun Repo:update/1, []}])
+                            P1 = Repo:get(person, 1),
+                            P1CS = person:changeset(P1, #{last_name => <<"Poe">>}),
+                            Repo:update(P1CS)
                          end),
 
     [_] = Repo:all(person),
@@ -122,13 +119,12 @@ t_transaction_error(Config) ->
                                                     last_name => "Poe",
                                                     age => 40})),
 
-                            {ok, _CS} =
-                                xdb_ct:pipe(person,
-                                            [{fun Repo:get/2, [1]},
-                                             {fun person:changeset/2,
-                                              [#{first_name => <<"John">>,
-                                                 last_name => <<"other">>}]},
-                                             {fun Repo:update/1, []}]),
+                            P2 = Repo:get(1),
+                            P2CS =
+                                person:changeset(P2,
+                                                 #{first_name => <<"John">>,
+                                                   last_name => <<"other">>}),
+                            {ok, _CS} = Repo:update(P2CS),
 
                             Repo:insert(
                                 account:schema(#{id => 1, username => "cabol"}))
